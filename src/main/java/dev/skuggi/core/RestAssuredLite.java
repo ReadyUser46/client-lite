@@ -1,57 +1,73 @@
 package dev.skuggi.core;
 
+import dev.skuggi.models.RequestModel;
+import dev.skuggi.models.ResponseModel;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.http.Method;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import lombok.Data;
-import org.apache.http.HttpStatus;
 
 import java.util.Map;
 
 @Data
 public class RestAssuredLite {
 
+    private static final ThreadLocal<RestAssuredLite> instance = new ThreadLocal<>();
+    private RequestModel requestModel;
     private final RequestSpecification client;
-    private Response response;
-    private String url;
-
+    private ResponseModel responseModel;
 
     public RestAssuredLite(boolean log) {
         client = log ? RestAssured.given().log().all() : RestAssured.given();
+        requestModel = new RequestModel();
     }
+
+    //-----------------------------------------------------------------------------------------------
 
     public static RestAssuredLite getInstance(boolean log) {
-        return new RestAssuredLite(log);
+        if (instance.get() == null) instance.set(new RestAssuredLite(log));
+        return instance.get();
     }
 
-
-    public RestAssuredLite setUrl(String url) {
-        this.url = url;
+    public RestAssuredLite setBaseUri(String baseUri) {
+        requestModel.setBaseUri(baseUri);
         return this;
     }
 
-    public RestAssuredLite appendToUrl(String url) {
-        this.url = this.url.concat(url);
+    public RestAssuredLite appendToBaseUri(String uri) {
+        requestModel.appendBaseUri(uri);
         return this;
     }
 
+    public RestAssuredLite setBasePath(String basePath) {
+        requestModel.setBasePath(basePath);
+        return this;
+    }
 
-    public RestAssuredLite addHeader(String attr, String value) {
-        client.header(attr, value);
+    public RestAssuredLite appendToBasePath(String path) {
+        requestModel.appendBasePath(path);
+        return this;
+    }
+
+    public RestAssuredLite addHeader(String attr, Object value) {
+        requestModel.getHeaders().put(attr, value);
         return this;
     }
 
     public RestAssuredLite addHeaders(Map<String, String> headers) {
-        for (Map.Entry<String, String> m : headers.entrySet()) {
-            client.header(m.getKey(), m.getValue());
-        }
+        requestModel.getHeaders().putAll(headers);
         return this;
     }
 
     public RestAssuredLite setContentType(ContentType contentType) {
-        client.contentType(contentType);
+        requestModel.setContentType(contentType);
+        return this;
+    }
+
+    public RestAssuredLite setBody(Object body) {
+        requestModel.setBody(body);
         return this;
     }
 
@@ -60,48 +76,49 @@ public class RestAssuredLite {
         return this;
     }
 
-    public RestAssuredLite sendRequest(Method requestType, Object body) {
-        client.baseUri(url);
-        client.body(body);
-        response = client.request(requestType);
+    //-----------------------------------------------------------------------------------------------
+
+    public RestAssuredLite sendRequest(Method requestType, String endpoint, Object... params) {
+        Response response;
+        if (endpoint != null) response = client.request(requestType, endpoint, params);
+        else response = client.request(requestType);
+
+        responseModel.setBody(response.asPrettyString());
+        responseModel.setStatusCode(response.getStatusCode());
         return this;
+    }
+
+    public RestAssuredLite sendRequest(Method requestType) {
+        return sendRequest(requestType, null, (Object) null);
     }
 
     public int getStatusCode() {
-        return response.getStatusCode();
+        return responseModel.getStatusCode();
     }
 
-    public RestAssuredLite requestGet(String endpoint, String... pathParams) {
-        Response response =
-                client
-                        .when()
-                        .get(endpoint, (Object) pathParams)
-                        .then()
-                        .assertThat()
-                        .statusCode(HttpStatus.SC_OK)
-                        .extract().response();
+    //-----------------------------------------------------------------------------------------------
 
-        setResponse(response);
-
+    public RestAssuredLite buildRequest() {
+        setTargetUrl();
+        setHeaders();
+        setContentType();
         return this;
-
     }
 
-    public RestAssuredLite requestPost(String endpoint, String body, String... pathParams) {
-        Response response =
-                client
-                        .body(body)
-                        .when()
-                        .post(endpoint, (Object) pathParams)
-                        .then()
-                        .assertThat()
-                        .statusCode(HttpStatus.SC_CREATED)
-                        .extract().response();
+    private void setTargetUrl() {
+        client.baseUri(requestModel.getBaseUri());
+        client.basePath(requestModel.getBasePath());
+    }
 
-        setResponse(response);
+    private void setHeaders() {
+        for (Map.Entry<String, Object> m : requestModel.getHeaders().entrySet()) {
+            client.header(m.getKey(), m.getValue());
+        }
+    }
 
-        return this;
-
+    private void setContentType() {
+        if (requestModel.getContentType() == null) requestModel.setContentType(ContentType.JSON);
+        client.contentType(requestModel.getContentType());
     }
 
 
