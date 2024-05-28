@@ -96,7 +96,7 @@ public class RestAssuredLite {
 
     /**
      * @param contentType http ContentType
-     * @return
+     * @return this
      */
     public RestAssuredLite setContentType(ContentType contentType) {
         requestModel.setContentType(contentType);
@@ -105,7 +105,7 @@ public class RestAssuredLite {
 
     /**
      * @param body Object containing request body
-     * @return
+     * @return this
      */
     public RestAssuredLite setBody(Object body) {
         requestModel.setBody(body);
@@ -123,7 +123,7 @@ public class RestAssuredLite {
      * @param requestType Method type for request(GET,PUT,POST,PUT...)
      * @param endpoint    String endpointh to be targeted
      * @param params      array object containing pathParams
-     * @return
+     * @return this
      */
     public RestAssuredLite sendRequest(Method requestType, String endpoint, Object... params) {
         Response response;
@@ -156,13 +156,11 @@ public class RestAssuredLite {
 
     /**
      * set url, headers and content type for the request
-     * @return this
      */
-    public RestAssuredLite buildRequest() {
+    public void buildRequest() {
         setTargetUrl();
         setHeaders();
         setContentType();
-        return this;
     }
 
     /**

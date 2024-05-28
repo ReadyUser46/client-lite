@@ -7,6 +7,9 @@ import lombok.Data;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
+/**
+ * pojo to represesnt request
+ */
 @Data
 @AllArgsConstructor
 public class RequestModel {
